@@ -55,8 +55,36 @@ export interface ActionResponse {
 // Helper to convert file paths to full URLs
 export function convertToUrl(filePath: string): string {
   if (!filePath) return '';
-  const cleanPath = filePath.replace(/^\.\//, '');
-  return `${API_BASE_URL}/${cleanPath}`;
+  
+  // Extract just the filename from the path
+  // Handles paths like: "./uploads/songs/uuid.mp3" or "uploads/songs/uuid.mp3" or "uuid.mp3"
+  let filename = filePath;
+  
+  // Remove leading "./" if present
+  filename = filename.replace(/^\.\//, '');
+  
+  // Extract filename from path (handles both forward and backslashes)
+  const pathParts = filename.split(/[/\\]/);
+  filename = pathParts[pathParts.length - 1];
+  
+  // Determine the endpoint based on file extension
+  if (filename.match(/\.(mp3|wav|m4a|ogg|flac)$/i)) {
+    // Audio file - use songs endpoint
+    return `${API_BASE_URL}/uploads/songs/${filename}`;
+  } else if (filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+    // Image file - use cover-art endpoint
+    return `${API_BASE_URL}/uploads/cover-art/${filename}`;
+  }
+  
+  // Fallback: try to determine from path structure
+  if (filePath.includes('songs')) {
+    return `${API_BASE_URL}/uploads/songs/${filename}`;
+  } else if (filePath.includes('cover-art')) {
+    return `${API_BASE_URL}/uploads/cover-art/${filename}`;
+  }
+  
+  // Default fallback
+  return `${API_BASE_URL}/uploads/${filename}`;
 }
 
 // Format numbers (1.2K, 1.5M)

@@ -31,6 +31,7 @@ export function SongCard({ song, queue, index = 0 }: SongCardProps) {
         isCurrentSong && "ring-1 ring-primary/50"
       )}
       style={{ animationDelay: `${index * 50}ms` }}
+      onClick={handlePlay}
     >
       {/* Cover Art */}
       <div className="relative aspect-square mb-4 overflow-hidden rounded-md shadow-lg">
@@ -43,20 +44,15 @@ export function SongCard({ song, queue, index = 0 }: SongCardProps) {
         {/* Play Button Overlay */}
         <div className={cn(
           "absolute inset-0 bg-black/40 flex items-center justify-center",
-          "opacity-0 group-hover:opacity-100 transition-all duration-300"
+          "opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none"
         )}>
-          <Button
-            variant="gold"
-            size="icon-lg"
-            onClick={handlePlay}
-            className="shadow-xl"
-          >
+          <div className="pointer-events-auto">
             {isCurrentSong && isPlaying ? (
-              <Pause className="w-6 h-6 fill-current" />
+              <Pause className="w-12 h-12 fill-current text-white drop-shadow-lg" />
             ) : (
-              <Play className="w-6 h-6 fill-current ml-1" />
+              <Play className="w-12 h-12 fill-current text-white drop-shadow-lg ml-1" />
             )}
-          </Button>
+          </div>
         </div>
 
         {/* Playing Indicator */}

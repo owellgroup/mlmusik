@@ -372,15 +372,22 @@ export function MusicPlayer() {
                   <Volume2 className="w-8 h-8" />
               )}
             </Button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-full"
-            />
+            <div className="relative w-full group">
+              <div className="absolute inset-0 h-2 bg-muted rounded-full pointer-events-none" />
+              <div 
+                className="absolute inset-y-0 left-0 h-2 bg-accent rounded-full pointer-events-none transition-all duration-150"
+                style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
+              />
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="w-full volume-slider relative z-10"
+              />
+            </div>
           </div>
 
             {/* Volume Button - Tablet only (mobile-friendly) */}

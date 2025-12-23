@@ -370,3 +370,44 @@ input[type="range"]:hover::-moz-range-thumb {
   transform: scale(1.4);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
+
+/* Volume slider with yellow/gold styling */
+input[type="range"].volume-slider {
+  @apply appearance-none bg-transparent cursor-pointer h-2;
+}
+
+input[type="range"].volume-slider::-webkit-slider-runnable-track {
+  @apply h-2 rounded-full bg-transparent;
+}
+
+input[type="range"].volume-slider::-webkit-slider-thumb {
+  @apply appearance-none w-5 h-5 rounded-full -mt-1.5;
+  background: hsl(var(--accent));
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px hsl(var(--accent) / 0.5), 0 0 0 2px hsl(var(--background));
+  cursor: pointer;
+}
+
+input[type="range"].volume-slider:hover::-webkit-slider-thumb,
+input[type="range"].volume-slider:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 4px 12px hsl(var(--accent) / 0.7), 0 0 0 3px hsl(var(--background));
+}
+
+input[type="range"].volume-slider::-moz-range-track {
+  @apply h-2 rounded-full bg-transparent;
+}
+
+input[type="range"].volume-slider::-moz-range-thumb {
+  @apply w-5 h-5 rounded-full border-0;
+  background: hsl(var(--accent));
+  box-shadow: 0 2px 8px hsl(var(--accent) / 0.5), 0 0 0 2px hsl(var(--background));
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+input[type="range"].volume-slider:hover::-moz-range-thumb,
+input[type="range"].volume-slider:active::-moz-range-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 4px 12px hsl(var(--accent) / 0.7), 0 0 0 3px hsl(var(--background));
+}

@@ -31,7 +31,10 @@ export function AlbumCard({ album, index = 0 }: AlbumCardProps) {
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Cover Art */}
-      <div className="relative aspect-square mb-4 overflow-hidden rounded-md shadow-lg">
+      <div 
+        className="relative aspect-square mb-4 overflow-hidden rounded-md shadow-lg cursor-pointer"
+        onClick={handlePlayAlbum}
+      >
         <img
           src={album.coverArtPath || '/placeholder.svg'}
           alt={album.title}
@@ -41,16 +44,11 @@ export function AlbumCard({ album, index = 0 }: AlbumCardProps) {
         {/* Play Button Overlay */}
         <div className={cn(
           "absolute inset-0 bg-black/40 flex items-center justify-center",
-          "opacity-0 group-hover:opacity-100 transition-all duration-300"
+          "opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none"
         )}>
-          <Button
-            variant="gold"
-            size="icon-lg"
-            onClick={handlePlayAlbum}
-            className="shadow-xl translate-y-2 group-hover:translate-y-0 transition-transform duration-300"
-          >
-            <Play className="w-6 h-6 fill-current ml-1" />
-          </Button>
+          <div className="pointer-events-auto">
+            <Play className="w-12 h-12 fill-current text-white drop-shadow-lg ml-1" />
+          </div>
         </div>
 
         {/* Album Badge */}

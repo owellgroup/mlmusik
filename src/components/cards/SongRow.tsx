@@ -35,7 +35,7 @@ export function SongRow({ song, queue, index, showCover = true }: SongRowProps) 
           ? '16px 48px 1fr 120px 80px 48px' 
           : '16px 1fr 120px 80px 48px' 
       }}
-      onDoubleClick={handlePlay}
+      onClick={handlePlay}
     >
       {/* Track Number / Play Button */}
       <div className="flex items-center justify-center">

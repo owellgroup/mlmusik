@@ -30,7 +30,8 @@ const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [state, setState] = useState<PlayerState>({
+  const playSongRef = useRef<((song: Song, queue?: Song[]) => Promise<void>) | null>(null);
+  const stateRef = useRef<PlayerState>({
     currentSong: null,
     isPlaying: false,
     currentTime: 0,
@@ -41,28 +42,64 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     isShuffled: false,
     repeatMode: 'off',
   });
+  const [state, setState] = useState<PlayerState>(stateRef.current);
+
+  // Sync stateRef with state
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Initialize audio element
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.volume = state.volume;
+    audioRef.current.preload = 'auto'; // Preload for faster playback
+    audioRef.current.crossOrigin = 'anonymous'; // Enable CORS for streaming
+    // Optimize for instant playback
+    audioRef.current.load();
 
     const audio = audioRef.current;
 
     const handleTimeUpdate = () => {
-      setState(prev => ({ ...prev, currentTime: audio.currentTime }));
+      setState(prev => {
+        const newState = { ...prev, currentTime: audio.currentTime };
+        stateRef.current = newState;
+        return newState;
+      });
     };
 
     const handleLoadedMetadata = () => {
-      setState(prev => ({ ...prev, duration: audio.duration }));
+      setState(prev => {
+        const newState = { ...prev, duration: audio.duration };
+        stateRef.current = newState;
+        return newState;
+      });
     };
 
     const handleEnded = () => {
-      if (state.repeatMode === 'one') {
-        audio.currentTime = 0;
-        audio.play();
-      } else {
-        playNext();
+      const currentState = stateRef.current;
+      if (currentState.repeatMode === 'one') {
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(console.error);
+        }
+      } else if (currentState.queue.length > 0) {
+        let nextIndex: number;
+        if (currentState.isShuffled) {
+          nextIndex = Math.floor(Math.random() * currentState.queue.length);
+        } else {
+          nextIndex = (currentState.currentIndex + 1) % currentState.queue.length;
+        }
+        if (nextIndex === 0 && currentState.repeatMode === 'off' && !currentState.isShuffled) {
+          setState(prev => {
+            const newState = { ...prev, isPlaying: false };
+            stateRef.current = newState;
+            return newState;
+          });
+        } else if (currentState.queue[nextIndex] && playSongRef.current) {
+          // playSong will update stateRef via setState
+          playSongRef.current(currentState.queue[nextIndex], currentState.queue);
+        }
       }
     };
 
@@ -89,43 +126,99 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Load the audio source
-    audio.src = song.filePath;
-    
-    // Add error handler
-    const handleError = (e: Event) => {
-      console.error('Audio error:', e);
-      console.error('Failed to load audio from:', song.filePath);
-      setState(prev => ({ ...prev, isPlaying: false }));
-    };
+    // If it's the same song, just toggle play/pause
+    if (state.currentSong?.id === song.id) {
+      if (state.isPlaying) {
+        audio.pause();
+        setState(prev => {
+          const newState = { ...prev, isPlaying: false };
+          stateRef.current = newState;
+          return newState;
+        });
+      } else {
+        // Play immediately without waiting
+        const playPromise = audio.play();
+        setState(prev => {
+          const newState = { ...prev, isPlaying: true };
+          stateRef.current = newState;
+          return newState;
+        });
+        playPromise.catch(console.error);
+      }
+      return;
+    }
 
-    audio.addEventListener('error', handleError);
-    
-    try {
-      // Load the audio first
-      await audio.load();
-      // Then play
-      await audio.play();
-      
-      setState(prev => ({
+    // Update state FIRST for instant UI feedback
+    setState(prev => {
+      const newState = {
         ...prev,
         currentSong: song,
         isPlaying: true,
         queue: queue || [song],
         currentIndex: queue ? queue.findIndex(s => s.id === song.id) : 0,
-      }));
+      };
+      stateRef.current = newState;
+      return newState;
+    });
 
-      // Track play
-      api.playSong(song.id).catch(console.error);
-      
-      // Remove error handler after successful load
+    // Stop current playback and switch source immediately
+    audio.pause();
+    audio.src = song.filePath;
+    audio.load(); // Start loading immediately
+    
+    // Add error handler
+    const handleError = (e: Event) => {
+      console.error('Audio error:', e);
+      console.error('Failed to load audio from:', song.filePath);
+      setState(prev => {
+        const newState = { ...prev, isPlaying: false };
+        stateRef.current = newState;
+        return newState;
+      });
       audio.removeEventListener('error', handleError);
-    } catch (error) {
-      console.error('Error playing song:', error);
-      console.error('Song file path:', song.filePath);
-      audio.removeEventListener('error', handleError);
-    }
-  }, []);
+    };
+
+    audio.addEventListener('error', handleError);
+    
+    // Try to play immediately - don't wait for load
+    const playPromise = audio.play();
+    
+    // Track play in background (don't wait)
+    api.playSong(song.id).catch(console.error);
+    
+    // Handle play promise
+    playPromise
+      .then(() => {
+        // Success - remove error handler
+        audio.removeEventListener('error', handleError);
+      })
+      .catch((error) => {
+        // If play fails, wait for canplay and try again
+        const handleCanPlay = () => {
+          audio.play()
+            .then(() => {
+              audio.removeEventListener('error', handleError);
+              audio.removeEventListener('canplay', handleCanPlay);
+            })
+            .catch((err) => {
+              console.error('Error playing song after canplay:', err);
+              setState(prev => {
+                const newState = { ...prev, isPlaying: false };
+                stateRef.current = newState;
+                return newState;
+              });
+              audio.removeEventListener('error', handleError);
+              audio.removeEventListener('canplay', handleCanPlay);
+            });
+        };
+        audio.addEventListener('canplay', handleCanPlay, { once: true });
+      });
+  }, [state.currentSong, state.isPlaying]);
+
+  // Update playSong ref whenever it changes
+  useEffect(() => {
+    playSongRef.current = playSong;
+  }, [playSong]);
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current || !state.currentSong) return;
