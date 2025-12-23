@@ -55,8 +55,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audioRef.current.volume = state.volume;
     audioRef.current.preload = 'auto'; // Preload for faster playback
     audioRef.current.crossOrigin = 'anonymous'; // Enable CORS for streaming
-    // Optimize for instant playback
-    audioRef.current.load();
+    
+    // Optimize for instant playback - set aggressive buffering
+    if (audioRef.current) {
+      // Don't wait for full file - start as soon as possible
+      audioRef.current.load();
+    }
 
     const audio = audioRef.current;
 
@@ -161,10 +165,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return newState;
     });
 
-    // Stop current playback and switch source immediately
+    // Stop current playback immediately
     audio.pause();
-    audio.src = song.filePath;
-    audio.load(); // Start loading immediately
+    audio.currentTime = 0;
     
     // Add error handler
     const handleError = (e: Event) => {
@@ -180,38 +183,53 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     audio.addEventListener('error', handleError);
     
-    // Try to play immediately - don't wait for load
-    const playPromise = audio.play();
+    // Set source FIRST - this starts loading immediately
+    audio.src = song.filePath;
     
     // Track play in background (don't wait)
     api.playSong(song.id).catch(console.error);
     
-    // Handle play promise
-    playPromise
+    // Aggressive playback attempt - try multiple times as data loads
+    let playSuccess = false;
+    
+    const attemptPlay = () => {
+      if (!playSuccess) {
+        audio.play()
+          .then(() => {
+            playSuccess = true;
+            // Success - clean up listeners
+            audio.removeEventListener('error', handleError);
+            audio.removeEventListener('canplay', attemptPlay);
+            audio.removeEventListener('loadeddata', attemptPlay);
+            audio.removeEventListener('progress', attemptPlay);
+            audio.removeEventListener('loadstart', attemptPlay);
+          })
+          .catch(() => {
+            // Will retry on next event
+          });
+      }
+    };
+    
+    // Listen for ALL events that indicate data is available - play ASAP
+    audio.addEventListener('loadstart', attemptPlay, { once: false });
+    audio.addEventListener('progress', attemptPlay, { once: false });
+    audio.addEventListener('loadeddata', attemptPlay, { once: false });
+    audio.addEventListener('canplay', attemptPlay, { once: false });
+    
+    // Try to play IMMEDIATELY - don't wait for anything
+    audio.play()
       .then(() => {
-        // Success - remove error handler
+        playSuccess = true;
+        // Success - remove all listeners
         audio.removeEventListener('error', handleError);
+        audio.removeEventListener('canplay', attemptPlay);
+        audio.removeEventListener('loadeddata', attemptPlay);
+        audio.removeEventListener('progress', attemptPlay);
+        audio.removeEventListener('loadstart', attemptPlay);
       })
-      .catch((error) => {
-        // If play fails, wait for canplay and try again
-        const handleCanPlay = () => {
-          audio.play()
-            .then(() => {
-              audio.removeEventListener('error', handleError);
-              audio.removeEventListener('canplay', handleCanPlay);
-            })
-            .catch((err) => {
-              console.error('Error playing song after canplay:', err);
-              setState(prev => {
-                const newState = { ...prev, isPlaying: false };
-                stateRef.current = newState;
-                return newState;
-              });
-              audio.removeEventListener('error', handleError);
-              audio.removeEventListener('canplay', handleCanPlay);
-            });
-        };
-        audio.addEventListener('canplay', handleCanPlay, { once: true });
+      .catch(() => {
+        // Expected - event listeners will handle retry
+        // Will play as soon as any data is available
       });
   }, [state.currentSong, state.isPlaying]);
 
