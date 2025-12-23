@@ -364,7 +364,7 @@ export function MusicPlayer() {
           </div>
           
             {/* Volume Control - Hidden on tablet, shown on desktop */}
-            <div className="hidden lg:flex items-center gap-4 w-56">
+            <div className="hidden lg:flex items-center gap-2 w-64">
               <Button variant="icon" size="icon-xl" onClick={toggleMute}>
               {isMuted || volume === 0 ? (
                   <VolumeX className="w-8 h-8" />
@@ -372,22 +372,58 @@ export function MusicPlayer() {
                   <Volume2 className="w-8 h-8" />
               )}
             </Button>
-            <div className="relative w-full group">
-              <div className="absolute inset-0 h-2 bg-muted rounded-full pointer-events-none" />
+            
+            {/* Volume decrease button */}
+            <Button 
+              variant="icon" 
+              size="icon-sm"
+              onClick={() => {
+                const newVolume = Math.max(0, volume - 0.1);
+                setVolume(newVolume);
+                if (newVolume > 0) setIsMuted(false);
+              }}
+              className="flex-shrink-0"
+            >
+              <span className="text-lg font-bold">−</span>
+            </Button>
+            
+            {/* Volume slider - larger and easier to click */}
+            <div className="relative flex-1 group cursor-pointer" onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const percent = (e.clientX - rect.left) / rect.width;
+              const newVolume = Math.max(0, Math.min(1, percent));
+              setVolume(newVolume);
+              if (newVolume > 0) setIsMuted(false);
+            }}>
+              <div className="absolute inset-0 h-3 bg-muted rounded-full pointer-events-none" />
               <div 
-                className="absolute inset-y-0 left-0 h-2 bg-accent rounded-full pointer-events-none transition-all duration-150"
+                className="absolute inset-y-0 left-0 h-3 bg-accent rounded-full pointer-events-none transition-all duration-150"
                 style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
               />
               <input
                 type="range"
                 min="0"
                 max="1"
-                step="0.01"
+                step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={handleVolumeChange}
-                className="w-full volume-slider relative z-10"
+                className="w-full volume-slider relative z-10 h-3 cursor-pointer"
               />
             </div>
+            
+            {/* Volume increase button */}
+            <Button 
+              variant="icon" 
+              size="icon-sm"
+              onClick={() => {
+                const newVolume = Math.min(1, volume + 0.1);
+                setVolume(newVolume);
+                setIsMuted(false);
+              }}
+              className="flex-shrink-0"
+            >
+              <span className="text-lg font-bold">+</span>
+            </Button>
           </div>
 
             {/* Volume Button - Tablet only (mobile-friendly) */}

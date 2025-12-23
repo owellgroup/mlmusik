@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { Song, api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
+
+const API_BASE_URL = 'https://api.owellserver.ggff.net/api';
 
 interface PlayerState {
   currentSong: Song | null;
@@ -29,8 +32,10 @@ interface PlayerContextType extends PlayerState {
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
+  const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playSongRef = useRef<((song: Song, queue?: Song[]) => Promise<void>) | null>(null);
+  const retryCountRef = useRef<Map<number, number>>(new Map()); // Track retry count per song
   const stateRef = useRef<PlayerState>({
     currentSong: null,
     isPlaying: false,
@@ -169,10 +174,63 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.pause();
     audio.currentTime = 0;
     
-    // Add error handler
+    // Add error handler with retry logic
+    const maxRetries = 2;
+    const currentRetryCount = retryCountRef.current.get(song.id) || 0;
+    
     const handleError = (e: Event) => {
+      const audioElement = e.target as HTMLAudioElement;
+      const error = audioElement.error;
+      
       console.error('Audio error:', e);
       console.error('Failed to load audio from:', song.filePath);
+      console.error('Error code:', error?.code);
+      console.error('Error message:', error?.message);
+      
+      // Check if it's a network/404 error
+      if (error) {
+        let errorMessage = 'Failed to load audio file';
+        if (error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+          errorMessage = 'Audio format not supported';
+        } else if (error.code === MediaError.MEDIA_ERR_NETWORK) {
+          errorMessage = 'Network error - file not found (404)';
+        } else if (error.code === MediaError.MEDIA_ERR_DECODE) {
+          errorMessage = 'Error decoding audio file';
+        } else if (error.code === MediaError.MEDIA_ERR_ABORTED) {
+          errorMessage = 'Audio loading was aborted';
+        }
+        
+        // Try alternative URL format if first attempt fails
+        const retryCount = retryCountRef.current.get(song.id) || 0;
+        if (retryCount < maxRetries) {
+          retryCountRef.current.set(song.id, retryCount + 1);
+          console.log(`Retrying audio load for song ${song.id} (attempt ${retryCount + 1}/${maxRetries})...`);
+          
+          // Try using song ID endpoint as fallback
+          const songIdUrl = `${API_BASE_URL}/uploads/songs/song/${song.id}`;
+          
+          setTimeout(() => {
+            audio.src = songIdUrl;
+            audio.load();
+            // Try to play again
+            audio.play().catch(() => {
+              // Will retry via error handler if needed
+            });
+          }, 300);
+          return;
+        }
+        
+        // Reset retry count for this song
+        retryCountRef.current.delete(song.id);
+        
+        // Show error to user after all retries failed
+        toast({
+          title: 'Unable to play song',
+          description: `${song.title} - ${errorMessage}. The file may not exist on the server.`,
+          variant: 'destructive',
+        });
+      }
+      
       setState(prev => {
         const newState = { ...prev, isPlaying: false };
         stateRef.current = newState;
@@ -183,7 +241,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     audio.addEventListener('error', handleError);
     
-    // Set source FIRST - this starts loading immediately
+    // Reset retry count for new song
+    retryCountRef.current.delete(song.id);
+    
+    // Set source - this starts loading immediately
     audio.src = song.filePath;
     
     // Track play in background (don't wait)

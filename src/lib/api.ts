@@ -2,6 +2,16 @@
 
 const API_BASE_URL = 'https://api.owellserver.ggff.net/api';
 
+// Helper to verify if a file URL is accessible
+export async function verifyFileUrl(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Types
 export interface Admin {
   id: number;

@@ -371,42 +371,46 @@ input[type="range"]:hover::-moz-range-thumb {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Volume slider with yellow/gold styling */
+/* Volume slider with yellow/gold styling - easier to use */
 input[type="range"].volume-slider {
-  @apply appearance-none bg-transparent cursor-pointer h-2;
+  @apply appearance-none bg-transparent cursor-pointer h-3;
+  -webkit-tap-highlight-color: transparent;
 }
 
 input[type="range"].volume-slider::-webkit-slider-runnable-track {
-  @apply h-2 rounded-full bg-transparent;
+  @apply h-3 rounded-full bg-transparent;
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb {
-  @apply appearance-none w-0 h-0;
-  background: transparent;
-  border: none;
+  @apply appearance-none w-4 h-4 rounded-full -mt-0.5;
+  background: hsl(var(--accent));
+  border: 2px solid hsl(var(--background));
   cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input[type="range"].volume-slider:hover::-webkit-slider-thumb,
 input[type="range"].volume-slider:active::-webkit-slider-thumb {
-  @apply w-0 h-0;
-  background: transparent;
-  border: none;
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px hsl(var(--accent) / 0.5);
 }
 
 input[type="range"].volume-slider::-moz-range-track {
-  @apply h-2 rounded-full bg-transparent;
+  @apply h-3 rounded-full bg-transparent;
 }
 
 input[type="range"].volume-slider::-moz-range-thumb {
-  @apply w-0 h-0 border-0;
-  background: transparent;
+  @apply w-4 h-4 rounded-full border-2;
+  border-color: hsl(var(--background));
+  background: hsl(var(--accent));
   cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input[type="range"].volume-slider:hover::-moz-range-thumb,
 input[type="range"].volume-slider:active::-moz-range-thumb {
-  @apply w-0 h-0;
-  background: transparent;
-  border: none;
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px hsl(var(--accent) / 0.5);
 }
